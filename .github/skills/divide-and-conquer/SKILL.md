@@ -9,7 +9,7 @@ Technique for solving problems by dividing them into smaller subproblems, solvin
 
 ## Sub-techniques
 
-- Finding interesting points in N log N
+- Finding interesting points in N log N → `content/geometry/ClosestPair.h`
 
 ## When to Use
 
@@ -25,6 +25,25 @@ Technique for solving problems by dividing them into smaller subproblems, solvin
 - Ensure the combine step is efficient
 - Analyze complexity using the Master theorem
 - Consider edge cases when the input size is small or odd
+
+## Available Implementations
+
+| Algorithm | File | Time | Description |
+|-----------|------|------|-------------|
+| Divide & Conquer DP | `content/various/DivideAndConquerDP.h` | O((N+hi-lo) log N) | D&C optimization when optimal split point is monotone |
+| Closest Pair | `content/geometry/ClosestPair.h` | O(n log n) | Closest pair of points via divide and conquer |
+
+### Cross-references
+
+These algorithms use divide and conquer internally but live under other skills:
+
+- `content/numerical/FastFourierTransform.h` — FFT uses divide and conquer (see also: numerical-methods skill)
+- `content/numerical/NumberTheoreticTransform.h` — NTT uses divide and conquer (see also: numerical-methods skill)
+- `content/strings/SuffixArray.h` — Suffix array construction (see also: strings skill)
+
+### Stress Tests
+
+No dedicated stress tests for these as D&C implementations, but ClosestPair has stress tests (via geometry).
 
 ## Troubleshooting
 
