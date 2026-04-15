@@ -9,10 +9,10 @@ Technique for solving optimization problems by making locally optimal choices at
 
 ## Sub-techniques
 
-- Scheduling
-- Max contiguous subvector sum
-- Invariants
-- Huffman encoding
+- Scheduling → `content/various/IntervalCover.h` (interval scheduling/covering is a classic greedy problem)
+- Max contiguous subvector sum — Kadane's algorithm pattern, no standalone implementation
+- Invariants — Conceptual technique
+- Huffman encoding — Not implemented in KACTL
 
 ## When to Use
 
@@ -28,6 +28,24 @@ Technique for solving optimization problems by making locally optimal choices at
 - Verify optimal substructure
 - Consider whether sorting the input first enables a greedy approach
 - Watch for cases where greedy fails and DP is needed instead
+
+## Available Implementations
+
+### Direct Greedy Implementations
+
+| Algorithm | File | Time | Description |
+|-----------|------|------|-------------|
+| Interval Cover | `content/various/IntervalCover.h` | O(N log N) | Finds minimum number of intervals covering a target interval |
+
+### Cross-references
+
+These algorithms use greedy strategies internally but live under other skills:
+
+- `content/geometry/ConvexHull.h` — Greedy hull construction, O(n log n) (see also: geometry skill)
+- `content/graph/DirectedMST.h` — Greedy arborescence construction, O(E log V) (see also: graph-theory skill)
+- `content/various/LIS.h` — Patience sorting (greedy + binary search) for LIS, O(N log N) (see also: dynamic-programming skill)
+
+> **Note:** Greedy algorithms in KACTL are typically embedded within other implementations rather than provided as standalone templates.
 
 ## Troubleshooting
 
