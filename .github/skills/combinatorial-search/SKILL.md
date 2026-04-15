@@ -29,6 +29,19 @@ Technique for exploring solution spaces systematically.
 - Meet in the middle can reduce O(2^n) to O(2^(n/2))
 - Choose appropriate heuristics for A* search
 
+## Available Implementations
+
+No standalone combinatorial search templates exist in KACTL. However, several implementations use combinatorial search techniques internally.
+
+### Cross-references
+
+These implementations employ combinatorial search strategies:
+- `content/graph/MaximalCliques.h` — Bron-Kerbosch with pruning for all maximal cliques, O(3^(n/3)) (see also: graph-theory skill)
+- `content/graph/MaximumClique.h` — Maximum clique with branch-and-bound pruning (see also: graph-theory skill)
+- `content/graph/MaximumIndependentSet.h` — Maximum independent set via complement graph clique search (see also: graph-theory skill)
+- `content/data-structures/MoQueries.h` — Uses TSP approximation for query ordering, O(N√Q) (see also: data-structures skill)
+- `content/various/FastKnapsack.h` — Knapsack with bounded search space, O(N·max(wᵢ)) (see also: dynamic-programming skill)
+
 ## Troubleshooting
 
 - **TLE**: Add more pruning; consider meet in the middle; reduce state space
