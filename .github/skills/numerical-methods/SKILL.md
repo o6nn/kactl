@@ -72,6 +72,7 @@ Technique for solving mathematical problems using numerical approximation.
 | Matrix Inverse | `content/numerical/MatrixInverse.h` | O(n³) | Matrix inversion via Gaussian elimination |
 | Matrix Inverse (mod) | `content/numerical/MatrixInverse-mod.h` | O(n³) | Matrix inversion modulo prime |
 | Tridiagonal | `content/numerical/Tridiagonal.h` | — | Tridiagonal system solver |
+| Sylvester AX+XB=C | `content/numerical/SylvesterSolve.h` | O(m³n³) | Sylvester equation via Kronecker product reduction |
 
 ### Transforms
 | Algorithm | File | Time | Description |
@@ -82,13 +83,14 @@ Technique for solving mathematical problems using numerical approximation.
 | Fast Subset Transform | `content/numerical/FastSubsetTransform.h` | O(N log N) | AND/OR/XOR convolution |
 
 ### Stress Tests
-Implementations with stress tests in `stress-tests/`: BerlekampMassey, FastFourierTransform, FastFourierTransformMod, FastSubsetTransform, IntDeterminant, LinearRecurrence, NumberTheoreticTransform, SolveLinear, SolveLinear2, SolveLinearBinary, Tridiagonal.
+Implementations with stress tests in `stress-tests/`: BerlekampMassey, FastFourierTransform, FastFourierTransformMod, FastSubsetTransform, IntDeterminant, LinearRecurrence, NumberTheoreticTransform, SolveLinear, SolveLinear2, SolveLinearBinary, SylvesterSolve, Tridiagonal.
 
 ### Old Unit Tests
 Implementations with old unit tests in `old-unit-tests/`: goldenSectionSearch.
 
 ### Cross-references
 - `content/data-structures/Matrix.h` — Basic matrix operations and exponentiation (see also: matrices, data-structures skills)
+- **solver** skill — Cross-check numerical algorithms against SciPy/NumPy reference solvers
 
 ## Troubleshooting
 
