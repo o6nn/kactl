@@ -195,11 +195,13 @@ jobs:
       - name: Dispatch to Copilot agent for analysis
         if: steps.analyze.outputs.issue_number != ''
         uses: actions/github-script@v7
+        env:
+          PROBLEM_DESC: ${{ steps.analyze.outputs.problem_description }}
         with:
           script: |
             const issueNumber = '${{ steps.analyze.outputs.issue_number }}';
             const selectedSkills = JSON.parse('${{ steps.analyze.outputs.selected_skills }}');
-            const problemDescription = `${{ steps.analyze.outputs.problem_description }}`.replace(/`/g, '');
+            const problemDescription = process.env.PROBLEM_DESC || '';
 
             // Create a Copilot agent task by adding a comment that triggers
             // the copilot-swe-agent workflow with the assembled context
@@ -219,7 +221,7 @@ jobs:
               await github.rest.actions.createWorkflowDispatch({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                workflow_id: 'copilot-swe-agent/copilot',
+                workflow_id: 'copilot-swe-agent.yml',
                 ref: 'main',
                 inputs: {
                   issue_number: issueNumber,
