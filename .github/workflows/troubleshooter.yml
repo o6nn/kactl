@@ -27,7 +27,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Invoke Troubleshooter Agent
+      - name: Analyze problem and select skills
+        id: analyze
         uses: actions/github-script@v7
         with:
           script: |
@@ -59,14 +60,56 @@ jobs:
             const agentInstructions = fs.readFileSync(agentPath, 'utf8');
             core.info('Loaded troubleshooter agent instructions');
 
-            // Load all available technique skills
+            // --- Intelligent skill selection ---
+            // Map keywords in the problem description to relevant skills
+            const skillKeywords = {
+              'matrices': ['matrix', 'matrices', 'determinant', 'inverse', 'linear system', 'eigenvalue', 'sylvester', 'schur', 'kronecker', 'gaussian elimination'],
+              'numerical-methods': ['numerical', 'equation', 'solve', 'approximation', 'interpolat', 'recurrence', 'fft', 'polynomial', 'root', 'integration', 'sylvester', 'simplex'],
+              'optimization': ['optimize', 'optimization', 'minimize', 'maximize', 'search', 'simplex', 'hill climbing', 'golden section'],
+              'graph-theory': ['graph', 'tree', 'edge', 'vertex', 'path', 'flow', 'matching', 'bipartite', 'cycle', 'spanning'],
+              'dynamic-programming': ['dynamic programming', 'dp', 'memoiz', 'subproblem', 'recurrence', 'knapsack'],
+              'geometry': ['geometry', 'polygon', 'convex hull', 'point', 'line', 'circle', 'intersection', 'area'],
+              'strings': ['string', 'substring', 'suffix', 'prefix', 'pattern', 'hash', 'automaton'],
+              'number-theory': ['prime', 'modular', 'gcd', 'euler', 'sieve', 'factorization', 'modulo', 'diophantine'],
+              'combinatorics': ['combinat', 'permutation', 'binomial', 'counting', 'catalan'],
+              'data-structures': ['segment tree', 'fenwick', 'union find', 'heap', 'trie', 'data structure'],
+              'sorting': ['sort', 'order', 'median', 'inversion'],
+              'greedy-algorithm': ['greedy', 'locally optimal'],
+              'divide-and-conquer': ['divide and conquer', 'merge sort', 'binary search'],
+              'recursion': ['recursion', 'recursive', 'backtrack'],
+              'game-theory': ['game', 'nim', 'sprague', 'grundy'],
+              'probability-theory': ['probability', 'expected value', 'random', 'markov'],
+              'combinatorial-search': ['brute force', 'enumerate', 'exhaustive'],
+              'algorithm-analysis': ['complexity', 'big o', 'amortized', 'time complexity'],
+              'sweeping': ['sweep line', 'sweep', 'event', 'interval'],
+              'solver': ['verify', 'prove', 'check', 'symbolic', 'validate', 'correct', 'counterexample', 'formal', 'sympy', 'scipy', 'wolfram', 'lean', 'coq'],
+            };
+
+            const problemLower = problemDescription.toLowerCase();
+            const skillScores = {};
+            for (const [skill, keywords] of Object.entries(skillKeywords)) {
+              let score = 0;
+              for (const kw of keywords) {
+                if (problemLower.includes(kw)) score++;
+              }
+              if (score > 0) skillScores[skill] = score;
+            }
+
+            // Sort by score descending, take top skills (at least 1, at most 5)
+            const rankedSkills = Object.entries(skillScores)
+              .sort((a, b) => b[1] - a[1])
+              .map(e => e[0]);
+            const selectedSkills = rankedSkills.length > 0 ? rankedSkills.slice(0, 5) : ['algorithm-analysis'];
+            core.info(`Selected skills (by relevance): ${selectedSkills.join(', ')}`);
+
+            // Load only the selected skills
             const skillsDir = path.join(process.env.GITHUB_WORKSPACE, '.github', 'skills');
-            const techniques = fs.readdirSync(skillsDir).filter(entry => {
+            const allTechniques = fs.readdirSync(skillsDir).filter(entry => {
               return fs.statSync(path.join(skillsDir, entry)).isDirectory();
             });
 
             const skills = {};
-            for (const technique of techniques) {
+            for (const technique of selectedSkills) {
               const skillPath = path.join(skillsDir, technique, 'SKILL.md');
               if (fs.existsSync(skillPath)) {
                 skills[technique] = fs.readFileSync(skillPath, 'utf8');
@@ -74,29 +117,56 @@ jobs:
               }
             }
 
-            // Build troubleshooting context
+            // Scan referenced implementation files from loaded skills for additional context
+            const fileContents = {};
+            const filePattern = /`(content\/[^`]+\.h)`/g;
+            for (const content of Object.values(skills)) {
+              let match;
+              while ((match = filePattern.exec(content)) !== null) {
+                const filePath = path.join(process.env.GITHUB_WORKSPACE, match[1]);
+                if (fs.existsSync(filePath) && !fileContents[match[1]]) {
+                  fileContents[match[1]] = fs.readFileSync(filePath, 'utf8');
+                }
+              }
+            }
+
+            // Build troubleshooting context with selected skills and referenced code
             const troubleshootingContext = [
               '## Agent Instructions',
               agentInstructions,
               '',
-              '## Available Technique Skills',
+              '## Selected Technique Skills (ranked by relevance)',
               ...Object.entries(skills).map(([name, content]) => `### ${name}\n${content}`),
               '',
+              '## Referenced Implementation Files',
+              ...Object.entries(fileContents).map(([name, content]) => `### ${name}\n\`\`\`cpp\n${content}\n\`\`\``),
+              '',
               '## Problem to Troubleshoot',
-              problemDescription
+              problemDescription,
+              '',
+              '## Analysis Request',
+              'Based on the above skills and existing implementations, please:',
+              '1. Identify which existing KACTL implementations are relevant to this problem.',
+              '2. Determine if the problem can be solved with existing code or requires new implementation.',
+              '3. If new implementation is needed, describe the algorithm and provide the code.',
+              '4. List any edge cases, numerical stability concerns, or limitations.',
             ].join('\n');
 
-            // Output the troubleshooting context as a summary
+            // Write the analysis context as a summary
             await core.summary
               .addHeading('Troubleshooter Agent Report')
               .addRaw(`**Problem:** ${problemDescription.split('\n')[0]}`)
               .addBreak()
-              .addRaw(`**Techniques loaded:** ${techniques.join(', ')}`)
+              .addRaw(`**Selected skills:** ${selectedSkills.join(', ')}`)
+              .addBreak()
+              .addRaw(`**All available techniques:** ${allTechniques.join(', ')}`)
+              .addBreak()
+              .addRaw(`**Referenced files:** ${Object.keys(fileContents).join(', ')}`)
               .addBreak()
               .addDetails('Full Troubleshooting Context', troubleshootingContext)
               .write();
 
-            // Post results to the issue if available
+            // Post initial status to the issue
             if (issueNumber) {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
@@ -107,14 +177,127 @@ jobs:
                   '',
                   `The troubleshooter agent has been invoked for this issue.`,
                   '',
-                  `**Techniques available:** ${techniques.join(', ')}`,
+                  `**Selected skills (by relevance):** ${selectedSkills.join(', ')}`,
+                  `**Referenced implementations:** ${Object.keys(fileContents).length} files loaded`,
                   '',
-                  'The agent will analyze the problem using the troubleshooting checklists and applicable algorithmic technique skills.',
+                  'The agent is now analyzing the problem using the selected skills and code references.',
                   '',
                   `See the [workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for full details.`
                 ].join('\n')
               });
             }
 
-            core.setOutput('techniques', JSON.stringify(techniques));
+            core.setOutput('issue_number', issueNumber || '');
+            core.setOutput('selected_skills', JSON.stringify(selectedSkills));
             core.setOutput('context', troubleshootingContext);
+            core.setOutput('problem_description', problemDescription);
+
+      - name: Dispatch to Copilot agent for analysis
+        if: steps.analyze.outputs.issue_number != ''
+        uses: actions/github-script@v7
+        env:
+          PROBLEM_DESC: ${{ steps.analyze.outputs.problem_description }}
+        with:
+          script: |
+            const issueNumber = '${{ steps.analyze.outputs.issue_number }}';
+            const selectedSkills = JSON.parse('${{ steps.analyze.outputs.selected_skills }}');
+            const problemDescription = process.env.PROBLEM_DESC || '';
+
+            // Create a Copilot agent task by adding a comment that triggers
+            // the copilot-swe-agent workflow with the assembled context
+            const analysisPrompt = [
+              `## Troubleshooter Analysis Request (from issue #${issueNumber})`,
+              '',
+              `**Problem:** ${problemDescription.split('\n')[0]}`,
+              '',
+              `**Relevant skills:** ${selectedSkills.join(', ')}`,
+              '',
+              'Please analyze this problem using the KACTL codebase and the relevant technique skills.',
+              'If new code is needed, implement it following KACTL conventions.',
+            ].join('\n');
+
+            // Try to dispatch to Copilot agent workflow if it exists
+            try {
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'copilot-swe-agent.yml',
+                ref: 'main',
+                inputs: {
+                  issue_number: issueNumber,
+                }
+              });
+              core.info(`Dispatched Copilot agent for issue #${issueNumber}`);
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: parseInt(issueNumber),
+                body: [
+                  '## 🤖 Copilot Agent Dispatched',
+                  '',
+                  `The troubleshooter has dispatched the Copilot coding agent to analyze and implement a solution.`,
+                  '',
+                  `**Skills identified:** ${selectedSkills.join(', ')}`,
+                  '',
+                  'The Copilot agent will:',
+                  '1. Analyze the problem against existing KACTL implementations',
+                  '2. Implement any needed algorithms',
+                  '3. Create a PR with the solution',
+                ].join('\n')
+              });
+            } catch (err) {
+              core.warning(`Could not dispatch Copilot agent: ${err.message}`);
+              // Fall back to posting the analysis context as a comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: parseInt(issueNumber),
+                body: [
+                  '## 📋 Troubleshooter Analysis Complete',
+                  '',
+                  `**Problem:** ${problemDescription.split('\n')[0]}`,
+                  '',
+                  `**Relevant skills:** ${selectedSkills.join(', ')}`,
+                  '',
+                  '### Recommended Approach',
+                  `Based on skill analysis, this problem relates to: **${selectedSkills.join(', ')}**.`,
+                  '',
+                  'The assembled troubleshooting context (agent instructions + relevant skills + referenced code) is available in the [workflow run summary](' +
+                  `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).`,
+                  '',
+                  '> **Note:** Automatic Copilot agent dispatch was not available. Please assign this to a Copilot coding agent manually, or use the workflow run summary as reference for manual implementation.',
+                ].join('\n')
+              });
+            }
+
+      - name: Run solver verification
+        if: contains(steps.analyze.outputs.selected_skills, 'solver') || contains(steps.analyze.outputs.selected_skills, 'matrices') || contains(steps.analyze.outputs.selected_skills, 'numerical-methods')
+        run: |
+          pip install numpy scipy sympy
+          python .github/scripts/verify_solution.py --problem all --size 4 --trials 50
+        continue-on-error: true
+
+      - name: Post verification results
+        if: steps.analyze.outputs.issue_number != '' && (contains(steps.analyze.outputs.selected_skills, 'solver') || contains(steps.analyze.outputs.selected_skills, 'matrices') || contains(steps.analyze.outputs.selected_skills, 'numerical-methods'))
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = '${{ steps.analyze.outputs.issue_number }}';
+            if (!issueNumber) return;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: parseInt(issueNumber),
+              body: [
+                '## 🔬 Solver Verification Results',
+                '',
+                'The solver skill ran reference verification using SciPy/NumPy against the following problem types:',
+                '- Sylvester equation (AX + XB = C)',
+                '- Linear system (Ax = b)',
+                '- Determinant',
+                '- Matrix inverse',
+                '',
+                `See the [workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for detailed pass/fail results.`,
+              ].join('\n')
+            });
